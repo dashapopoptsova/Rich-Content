@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>РИЧ-контент — загрузка</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; }
+    body { max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    p, label { font-size: 0.9rem; line-height: 1.5; }
+    .box { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .err { color: #b00020; font-size: 0.85rem; margin-top: 0.5rem; }
+    .hint { color: #555; font-size: 0.8rem; margin-top: 0.75rem; }
+    button { margin-top: 0.75rem; padding: 0.5rem 1rem; cursor: pointer; }
+    code { background: #f0f0f0; padding: 0.1em 0.3em; border-radius: 4px; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>Минимальная загрузка для n8n</h1>
+  <p>Откройте эту страницу в браузере, выберите <strong>от 3 до 10</strong> изображений (JPG/PNG, до 5 МБ) и нажмите «Отправить».</p>
+
+  <div class="box">
+    <form
+      id="f"
+      method="post"
+      enctype="multipart/form-data"
+      target="_self"
+    >
+      <!-- URL webhook: замените на свой Test URL или Production URL из ноды Webhook в n8n -->
+      <p><label for="url">URL webhook (POST):</label><br />
+        <input id="url" type="url" required style="width:100%;box-sizing:border-box;padding:0.4rem" placeholder="https://…/webhook-test/rich-content-mvp" autocomplete="off" />
+      </p>
+      <p>
+        <label for="files">Файлы:</label><br />
+        <input id="files" type="file" name="data" accept="image/jpeg,image/png,.jpg,.jpeg,.png,.jfif" multiple required />
+      </p>
+      <p id="count" class="hint">Выбрано файлов: 0</p>
+      <p id="client-err" class="err" hidden></p>
+      <button type="submit">Отправить</button>
+    </form>
+  </div>
+
+  <p class="hint">
+    Почему была ошибка <code>404 GET</code>: адрес webhook вставленный в строку браузера вызывает <strong>GET</strong>, а нода принимает только <strong>POST</strong>.
+    Эта форма отправляет POST с файлами.
+  </p>
+
+  <script>
+    (function () {
+      var WEBHOOK_DEFAULT = 'https://n8n-public.iqi.internal/webhook-test/rich-content-mvp';
+      var urlInput = document.getElementById('url');
+      var filesInput = document.getElementById('files');
+      var countEl = document.getElementById('count');
+      var form = document.getElementById('f');
+      var errEl = document.getElementById('client-err');
+
+      urlInput.value = localStorage.getItem('rich_webhook_url') || WEBHOOK_DEFAULT;
+
+      function updateCount() {
+        var n = filesInput.files ? filesInput.files.length : 0;
+        countEl.textContent = 'Выбрано файлов: ' + n;
+      }
+      filesInput.addEventListener('change', updateCount);
+      updateCount();
+
+      form.addEventListener('submit', function (e) {
+        errEl.hidden = true;
+        var url = (urlInput.value || '').trim();
+        if (!url) {
+          e.preventDefault();
+          errEl.textContent = 'Укажите URL webhook.';
+          errEl.hidden = false;
+          return;
+        }
+        localStorage.setItem('rich_webhook_url', url);
+
+        var n = filesInput.files.length;
+        if (n < 3 || n > 10) {
+          e.preventDefault();
+          errEl.textContent = 'Нужно от 3 до 10 изображений. Сейчас: ' + n + '.';
+          errEl.hidden = false;
+          return;
+        }
+
+        form.action = url;
+      });
+    })();
+  </script>
+</body>
+</html>

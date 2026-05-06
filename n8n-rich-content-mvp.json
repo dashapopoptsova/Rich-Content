@@ -1,0 +1,305 @@
+{
+  "name": "Rich Content MVP — загрузка изображений",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rich-content-mvp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Webhook — загрузка",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "rich-content-mvp-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Лимит OpenRouter ~30MB: сумма байт картинок + base64 в JSON\nreturn await (async function () {\nlet sharpMod = null;\ntry {\n  sharpMod = require('sharp');\n} catch (e) {\n  sharpMod = null;\n}\n\nconst all = $input.all();\nconst parts = [];\nfor (let itemIndex = 0; itemIndex < all.length; itemIndex++) {\n  const item = all[itemIndex];\n  if (!item.binary) continue;\n  for (const key of Object.keys(item.binary)) {\n    parts.push({ itemIndex, key, bin: item.binary[key] });\n  }\n}\n\nconst MAX_BYTES = 5 * 1024 * 1024;\nconst ALLOWED = [\n  'image/jpeg',\n  'image/jpg',\n  'image/png',\n  'image/jfif',\n  'image/pjpeg',\n];\n// Провайдер: «Downloaded image content cannot exceed 30MB» — лимит по сумме входных картинок;\n// в теле запроса они ещё и в base64 (~+33% к размеру).\nconst MAX_TOTAL_DECODED = 16 * 1024 * 1024;\n\nfunction fail(message, extra = {}) {\n  return [{ json: { valid: false, error: message, ...extra } }];\n}\n\nif (parts.length < 3 || parts.length > 10) {\n  return fail('Нужно от 3 до 10 изображений.', { count: parts.length });\n}\n\nconst buffersMeta = [];\n\nfor (let i = 0; i < parts.length; i++) {\n  const { itemIndex, key, bin } = parts[i];\n  const mime = (bin.mimeType || '').toLowerCase();\n  if (!ALLOWED.includes(mime)) {\n    return fail('Допустимы только JPG/JPEG/JFIF и PNG.', { index: i, mime });\n  }\n  let buffer;\n  try {\n    buffer = await this.helpers.getBinaryDataBuffer(itemIndex, key);\n  } catch (e) {\n    return fail('Не удалось прочитать файл (binary).', {\n      index: i,\n      detail: String(e.message || e),\n    });\n  }\n  if (buffer.length > MAX_BYTES) {\n    return fail('Файл превышает 5 МБ.', { index: i, size: buffer.length });\n  }\n  buffersMeta.push({ buffer, mime });\n}\n\nasync function compressOne(sharp, buf, mimeIn, maxDim, quality) {\n  if (!sharp) return buf;\n  const isPng = mimeIn.includes('png');\n  let p = sharp(buf).rotate().resize(maxDim, maxDim, {\n    fit: 'inside',\n    withoutEnlargement: true,\n  });\n  if (isPng) {\n    p = p.flatten({ background: { r: 255, g: 255, b: 255 } });\n  }\n  try {\n    return await p.jpeg({ quality, mozjpeg: true }).toBuffer();\n  } catch (e) {\n    throw new Error('sharp: ' + String(e.message || e));\n  }\n}\n\nconst tiers = [\n  { maxDim: 1024, q: 76 },\n  { maxDim: 800, q: 72 },\n  { maxDim: 640, q: 68 },\n  { maxDim: 512, q: 64 },\n  { maxDim: 400, q: 60 },\n  { maxDim: 320, q: 56 },\n  { maxDim: 256, q: 52 },\n  { maxDim: 192, q: 48 },\n];\n\nasync function compressAll(tier) {\n  const out = [];\n  let total = 0;\n  for (const bm of buffersMeta) {\n    const b = await compressOne(sharpMod, bm.buffer, bm.mime, tier.maxDim, tier.q);\n    out.push(b);\n    total += b.length;\n  }\n  return { out, total };\n}\n\nlet finalBuffers = null;\n\nif (sharpMod) {\n  for (const tier of tiers) {\n    try {\n      const { out, total } = await compressAll(tier);\n      if (total <= MAX_TOTAL_DECODED) {\n        finalBuffers = out;\n        break;\n      }\n    } catch (e) {\n      return fail('Ошибка сжатия изображения.', { detail: String(e.message || e) });\n    }\n  }\n  if (!finalBuffers) {\n    for (let md = 176; md >= 80; md -= 16) {\n      const q = Math.max(36, 44 - Math.floor((176 - md) / 24));\n      try {\n        const { out, total } = await compressAll({ maxDim: md, q });\n        if (total <= MAX_TOTAL_DECODED) {\n          finalBuffers = out;\n          break;\n        }\n      } catch (e) {\n        return fail('Ошибка сжатия изображения.', { detail: String(e.message || e) });\n      }\n    }\n  }\n  if (!finalBuffers) {\n    try {\n      const { out, total } = await compressAll({ maxDim: 64, q: 32 });\n      if (total <= MAX_TOTAL_DECODED) {\n        finalBuffers = out;\n      }\n    } catch (e) {\n      return fail('Ошибка сжатия изображения.', { detail: String(e.message || e) });\n    }\n  }\n} else {\n  let total = 0;\n  const out = [];\n  for (const bm of buffersMeta) {\n    total += bm.buffer.length;\n    out.push(bm.buffer);\n  }\n  if (total <= MAX_TOTAL_DECODED) {\n    finalBuffers = out;\n  }\n}\n\nif (!finalBuffers) {\n  const sumRaw = buffersMeta.reduce((s, b) => s + b.buffer.length, 0);\n  if (!sharpMod) {\n    const mib = (sumRaw / (1024 * 1024)).toFixed(2);\n    const limitMb = (MAX_TOTAL_DECODED / (1024 * 1024)).toFixed(0);\n    return fail(\n      'Пакет sharp в n8n не найден — изображения не сжимаются. Без сжатия разрешена сумма файлов не больше ~' +\n        limitMb +\n        ' МиБ (сырые байты). У вас ~' +\n        mib +\n        ' МиБ (' +\n        sumRaw +\n        ' байт): это то же, что «24,5 МБ» в проводнике (разные округления и единицы МБ/МиБ). После кодирования base64 ~25 МБ станут >30 МБ для API. Установите sharp в окружение n8n (npm install sharp в каталоге установки или в Docker-образе) и перезапустите n8n.',\n      { totalBytes: sumRaw, limitWithoutSharpMiB: Number(limitMb) },\n    );\n  }\n  return fail(\n    'Не удалось уложить изображения в лимит API даже при сильном сжатии. Уменьшите число файлов или разрешение исходников.',\n    { totalBytesApprox: sumRaw },\n  );\n}\n\nconst PROMPT = [\n  'Ты создаёшь один вертикальный РИЧ-баннер для маркетплейса: единое полотно визуального лендинга, не набор случайно склеенных картинок.',\n  'Используй переданные изображения как референсы товара и стиля. Нумерация сверху вниз: изображение 1 … изображение N.',\n  'Текст на баннере разрешён ТОЛЬКО из того, что реально читается на этих фото. Не придумывай состав, цифры, обещания и характеристики, если их нет на изображениях.',\n  'Структура сверху вниз: Hero → краткие преимущества → при необходимости раскрытие → свойства/материалы (если видно на фото) → ассортимент только если на фото явно несколько SKU.',\n  'Единая палитра и аккуратная типографика, читаемость.',\n  'Сгенерируй одно итоговое изображение (вертикальный баннер).',\n].join('\\n');\n\nconst content = [{ type: 'text', text: PROMPT }];\nconst outMime = sharpMod ? 'image/jpeg' : null;\n\nfor (let i = 0; i < finalBuffers.length; i++) {\n  const buf = finalBuffers[i];\n  const mime = outMime || buffersMeta[i].mime;\n  const b64 = buf.toString('base64');\n  const dataUrl = 'data:' + mime + ';base64,' + b64;\n  content.push({\n    type: 'image_url',\n    image_url: { url: dataUrl },\n  });\n}\n\nconst payload = {\n  model: 'google/gemini-3.1-flash-image-preview',\n  messages: [{ role: 'user', content }],\n  modalities: ['image', 'text'],\n  image_config: {\n    aspect_ratio: '1:4',\n    image_size: '2K',\n  },\n};\n\nreturn [{ json: { valid: true, payload } }];\n\n}).call(this);"
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Проверка и сбор запроса",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Валидация OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://github.com/rich-content-mvp"
+            },
+            {
+              "name": "X-Title",
+              "value": "Rich Content MVP"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+      "name": "OpenRouter — генерация",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -80
+      ],
+      "notes": "Задайте переменную окружения OPENROUTER_API_KEY в n8n или замените заголовок Authorization на статический Bearer-ключ (только для теста)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst msg = res.choices && res.choices[0] && res.choices[0].message;\nconst images = msg && msg.images;\nconst first = images && images[0];\nconst url = first && first.image_url && first.image_url.url;\n\nfunction err(message, detail) {\n  return [{ json: { ok: false, error: message, detail } }];\n}\n\nif (!url || typeof url !== 'string') {\n  return err('В ответе нет изображения.', res);\n}\n\nconst m = url.match(/^data:([^;]+);base64,(.+)$/);\nif (!m) {\n  return err('Некорректный data URL изображения.');\n}\n\nconst mimeType = m[1];\nconst data = m[2];\nconst ext = mimeType.includes('png') ? 'png' : 'jpg';\n\nreturn [{\n  json: { ok: true, mimeType },\n  binary: {\n    data: {\n      data,\n      mimeType,\n      fileName: 'rich-content.' + ext\n    }\n  }\n}];"
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+      "name": "Извлечь PNG/JPG из ответа",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "={{ $json.mimeType || 'image/png' }}"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"rich-content.png\""
+              }
+            ]
+          }
+        }
+      },
+      "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+      "name": "Ответ — картинка",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error, count: $json.count, detail: $json.detail } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a7b8c9d0-e1f2-3456-0123-567890123456",
+      "name": "Ответ — ошибка 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error || 'Ошибка генерации', detail: $json.detail || $json } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "b8c9d0e1-f2a3-4567-1234-678901234567",
+      "name": "Ответ — нет картинки 502",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ok-binary",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-a3b4-5678-2345-789012345678",
+      "name": "Картинка есть?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        990,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook — загрузка": {
+      "main": [
+        [
+          {
+            "node": "Проверка и сбор запроса",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверка и сбор запроса": {
+      "main": [
+        [
+          {
+            "node": "Валидация OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Валидация OK?": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter — генерация",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ответ — ошибка 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter — генерация": {
+      "main": [
+        [
+          {
+            "node": "Извлечь PNG/JPG из ответа",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлечь PNG/JPG из ответа": {
+      "main": [
+        [
+          {
+            "node": "Картинка есть?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Картинка есть?": {
+      "main": [
+        [
+          {
+            "node": "Ответ — картинка",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ответ — нет картинки 502",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
