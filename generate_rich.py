@@ -34,10 +34,10 @@ INPUT_DIR = ROOT / "входные"
 OUTPUT_DIR = ROOT / "выходные"
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "google/gemini-3.1-flash-image-preview"
+MODEL = "google/gemini-3.1-flash-image-preview-20260226"
 
 MAX_BYTES_FILE = 5 * 1024 * 1024
-MAX_TOTAL_DECODED = 16 * 1024 * 1024
+MAX_TOTAL_DECODED = 4 * 1024 * 1024
 
 EXT_TO_MIME = {
     ".jpg": "image/jpeg",
@@ -125,15 +125,63 @@ def shrink_buffers(buffers_meta: list[dict]) -> list[bytes]:
 
 
 def build_prompt() -> str:
-    return "\n".join(
-        [
-            "Ты создаёшь один вертикальный РИЧ-баннер для маркетплейса: единое полотно визуального лендинга, не набор случайно склеенных картинок.",
-            "Используй переданные изображения как референсы товара и стиля. Нумерация сверху вниз: изображение 1 … изображение N.",
-            "Текст на баннере разрешён ТОЛЬКО из того, что реально читается на этих фото. Не придумывай состав, цифры, обещания и характеристики, если их нет на изображениях.",
-            "Структура сверху вниз: Hero → краткие преимущества → при необходимости раскрытие → свойства/материалы (если видно на фото) → ассортимент только если на фото явно несколько SKU.",
-            "Единая палитра и аккуратная типографика, читаемость.",
-            "Сгенерируй одно итоговое изображение (вертикальный баннер).",
-        ]
+    return (
+        "Ты — дизайнер маркетплейс-контента. Создай ОДИН вертикальный РИЧ-баннер для карточки товара.\n"
+        "Результат: единое визуальное полотно, которое выглядит как профессиональный лендинг — "
+        "не набор склеенных блоков, а цельная история о товаре.\n\n"
+
+        "━━━ ШАГ 0 — АНАЛИЗ ПЕРЕД РИСОВАНИЕМ ━━━\n"
+        "Прежде чем рисовать, мысленно выполни:\n"
+        "• Определи товар (что это, категория продукта)\n"
+        "• Извлеки доминирующие цвета с фото: фоны, акценты, шрифты — они станут палитрой баннера\n"
+        "• OCR: прочитай все надписи на упаковках и карточках дословно, запомни их точно\n"
+        "• Выдели: название товара, количество в упаковке, размеры, список преимуществ, материалы, таблицу размеров\n\n"
+
+        "━━━ ПРАВИЛО ТЕКСТА — СТРОГОЕ, БЕЗ ИСКЛЮЧЕНИЙ ━━━\n"
+        "• Пиши ТОЛЬКО слова и цифры, которые ты дословно прочитал на переданных фото\n"
+        "• НЕЛЬЗЯ: перефразировать, домысливать, добавлять характеристики, сочинять обещания\n"
+        "• Нечёткое слово — пропусти полностью. Пустое место лучше ошибочного текста\n\n"
+
+        "━━━ СТРУКТУРА БАННЕРА (5 блоков сверху вниз) ━━━\n\n"
+
+        "БЛОК 1 — HERO (обложка)\n"
+        "• Название товара крупно — дословно с фото\n"
+        "• Главное фото товара/упаковки — крупно, без прямоугольной рамки, вписано в градиентный фон\n"
+        "• Фирменный градиент фона — цвет из палитры фото\n"
+        "• Количество штук, знаки качества — только если явно видны на фото\n\n"
+
+        "БЛОК 2 — ПРЕИМУЩЕСТВА / USP\n"
+        "• Сетка: иконка + короткая подпись для каждого преимущества с фото\n"
+        "• Каждая подпись — в pill-плашке (сильно скруглённая таблетка) акцентного цвета\n"
+        "• Максимум 6 пунктов, только реально присутствующие на фото — без добавлений\n\n"
+
+        "БЛОК 3 — РАСКРЫТИЕ\n"
+        "• Крупный план: материал, текстура, внутренняя структура — если такое фото есть\n"
+        "• Компоновка: изображение слева + текст справа (или наоборот)\n"
+        "• Текст — только подписи с фото (1–2 короткие фразы)\n\n"
+
+        "БЛОК 4 — ХАРАКТЕРИСТИКИ\n"
+        "• Параметры в плашках или таблице — ТОЛЬКО если написаны на исходных фото\n"
+        "• Размеры (мм/см), состав, технологии — только если явно указаны\n"
+        "• Нет данных на фото — блок пропустить\n\n"
+
+        "БЛОК 5 — АССОРТИМЕНТ\n"
+        "• Таблица размеров или линейка SKU — дословно с фото\n"
+        "• Рисовать ТОЛЬКО если на фото есть несколько вариантов/размеров — иначе пропустить\n\n"
+
+        "━━━ ПРАВИЛА ВИЗУАЛЬНОГО СТИЛЯ ━━━\n"
+        "ФОН: единый вертикальный градиент через всё полотно (цвет из палитры фото). "
+        "Переходы между блоками — плавные волны или мягкие диагонали, НИКАКИХ жёстких горизонтальных линий.\n"
+        "ТИПОГРАФИКА: заголовки — очень крупный жирный шрифт, высокий контраст. "
+        "Подписи в плашках — средний жирный. Нет мелкого нечитаемого текста.\n"
+        "ИЗОБРАЖЕНИЯ: товар вписан органично, без жёсткой прямоугольной вырезки. "
+        "Лёгкая тень или свечение вокруг продукта для объёма.\n"
+        "ПЛАШКИ: pill-форма (сильно скруглённые углы), акцентный цвет из палитры.\n"
+        "ИТОГ: вся картинка — единый премиальный лендинг, взгляд плавно скользит сверху вниз.\n\n"
+
+        "━━━ ТЕХНИЧЕСКИЕ ПАРАМЕТРЫ ━━━\n"
+        "• Размер выходного изображения: 800×2500 px\n"
+        "• Вывод: одно изображение, без рамок и полей\n"
     )
 
 
@@ -166,7 +214,8 @@ def requests_verify_bundle() -> bool | str | ssl.SSLContext:
     try:
         import truststore
 
-        return truststore.ssl_context()
+        truststore.inject_into_ssl()
+        return True
     except ImportError:
         return certifi.where()
 
@@ -249,46 +298,116 @@ def main() -> int:
         "model": MODEL,
         "messages": [{"role": "user", "content": content}],
         "modalities": ["image", "text"],
-        "image_config": {"aspect_ratio": "1:4", "image_size": "2K"},
+        "image_config": {"aspect_ratio": "1:4"},
     }
+
+    payload_bytes = len(json.dumps(payload).encode("utf-8"))
+    print(
+        f"Изображений: {len(final_buffers)}, "
+        f"сжатых байт суммарно: {sum(len(b) for b in final_buffers) // 1024} КБ, "
+        f"размер JSON-запроса: {payload_bytes // 1024} КБ",
+        file=sys.stderr,
+    )
 
     verify = requests_verify_bundle()
 
-    print("Запрос к OpenRouter…", file=sys.stderr)
-    try:
-        r = requests.post(
-            OPENROUTER_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/rich-content-cli",
-                "X-Title": "Rich Content Python",
-            },
-            json=payload,
-            timeout=300,
-            verify=verify,
-        )
-    except requests.exceptions.SSLError as e:
-        print(
-            "Ошибка TLS при обращении к openrouter.ai.\n"
-            "  • Выполните: pip install -r requirements.txt (нужны пакеты truststore, certifi).\n"
-            "  • По умолчанию используется хранилище Windows — корпоративный CA должен быть в «Доверенные корневые».\n"
-            "  • Либо укажите PEM с корнем прокси в .env: SSL_CERT_FILE=C:\\path\\to\\corp.pem\n"
-            "  • Либо временно: OPENROUTER_INSECURE_SSL=1 (небезопасно)\n"
-            f"Исходное сообщение: {e}",
-            file=sys.stderr,
-        )
-        return 1
+    MAX_RETRIES = 3
+    RETRY_DELAY = 20
 
-    try:
-        data = r.json()
-    except json.JSONDecodeError:
-        print("Ответ не JSON:", r.text[:500], file=sys.stderr)
-        return 1
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/rich-content-cli",
+        "X-Title": "Rich Content Python",
+    }
 
-    if not r.ok:
-        print("Ошибка OpenRouter:", r.status_code, json.dumps(data, ensure_ascii=False), file=sys.stderr)
-        return 1
+    data: dict = {}
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"Запрос к OpenRouter… (попытка {attempt}/{MAX_RETRIES})", file=sys.stderr)
+        try:
+            r = requests.post(
+                OPENROUTER_URL,
+                headers=headers,
+                json=payload,
+                timeout=300,
+                verify=verify,
+            )
+        except requests.exceptions.SSLError as e:
+            print(
+                "Ошибка TLS при обращении к openrouter.ai.\n"
+                "  • Выполните: pip install -r requirements.txt (нужны пакеты truststore, certifi).\n"
+                "  • По умолчанию используется хранилище Windows — корпоративный CA должен быть в «Доверенные корневые».\n"
+                "  • Либо укажите PEM с корнем прокси в .env: SSL_CERT_FILE=C:\\path\\to\\corp.pem\n"
+                "  • Либо временно: OPENROUTER_INSECURE_SSL=1 (небезопасно)\n"
+                f"Исходное сообщение: {e}",
+                file=sys.stderr,
+            )
+            return 1
+        except requests.exceptions.Timeout:
+            print(f"Таймаут запроса (попытка {attempt}).", file=sys.stderr)
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+                continue
+            print("Все попытки исчерпаны. Сервер не отвечает.", file=sys.stderr)
+            return 1
+
+        try:
+            data = r.json()
+        except json.JSONDecodeError:
+            print("Ответ не JSON:", r.text[:500], file=sys.stderr)
+            return 1
+
+        # Проверяем ошибку в теле ответа (OpenRouter может вернуть HTTP 200 + {error:...})
+        api_err = data.get("error")
+        if api_err or not r.ok:
+            err_info = api_err if isinstance(api_err, dict) else {}
+            err_code = err_info.get("code") or r.status_code
+            err_msg  = err_info.get("message", r.reason or "неизвестно")
+
+            # 524 — таймаут провайдера, повторяем
+            if err_code == 524:
+                print(
+                    f"Провайдер вернул таймаут 524 (попытка {attempt}). "
+                    "Модель не успела ответить за отведённое время.",
+                    file=sys.stderr,
+                )
+                if attempt < MAX_RETRIES:
+                    print(f"Повтор через {RETRY_DELAY} сек…", file=sys.stderr)
+                    time.sleep(RETRY_DELAY)
+                    continue
+                print(
+                    "Все попытки исчерпаны.\n"
+                    "  • Уменьшите число изображений (3–5 вместо 10).\n"
+                    "  • Попробуйте позже — возможна перегрузка провайдера.",
+                    file=sys.stderr,
+                )
+                return 1
+
+            # 400 — если сообщение generic ("Provider returned error") — возможно временное, повторяем
+            if err_code == 400:
+                is_generic = err_msg.strip().lower() in (
+                    "provider returned error", "provider returned error.", ""
+                )
+                print(
+                    f"Ошибка 400 (попытка {attempt}): {err_msg}\n"
+                    f"Полный ответ: {json.dumps(data, ensure_ascii=False)[:800]}",
+                    file=sys.stderr,
+                )
+                if is_generic and attempt < MAX_RETRIES:
+                    print(f"Ошибка generic — повтор через {RETRY_DELAY} сек…", file=sys.stderr)
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return 1
+
+            # Остальные ошибки
+            print(
+                f"Ошибка OpenRouter {err_code}: {err_msg}\n"
+                f"Полный ответ: {json.dumps(data, ensure_ascii=False)[:800]}",
+                file=sys.stderr,
+            )
+            return 1
+
+        break  # успешный ответ — выходим из цикла
 
     try:
         out_bytes, out_mime = extract_image_from_response(data)
