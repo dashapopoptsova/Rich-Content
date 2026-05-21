@@ -317,14 +317,75 @@ def call_api(
 
 
 # ─────────────────────────────────────────────────────────────
-# main
+# Основной пайплайн (используется и CLI, и веб-приложением)
+# ─────────────────────────────────────────────────────────────
+
+def run_pipeline(input_paths: list[Path], prompt_text: str | None = None) -> Path:
+    """Сжимает изображения, вызывает API, сохраняет результат. Возвращает путь к файлу."""
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Задайте OPENROUTER_API_KEY в файле .env или переменной окружения.")
+
+    buffers_meta: list[dict] = []
+    for fp in input_paths:
+        buf = fp.read_bytes()
+        if len(buf) > MAX_BYTES_FILE:
+            raise RuntimeError(f"Файл слишком большой (>5 МБ): {fp.name}")
+        mime = mime_from_name(fp.name)
+        if not mime:
+            raise RuntimeError(f"Неподдерживаемый формат: {fp.name}")
+        buffers_meta.append({"buffer": buf, "mime": mime, "name": fp.name})
+
+    print("Сжатие изображений под лимит API…", file=sys.stderr)
+    final_buffers = shrink_buffers(buffers_meta)
+
+    verify = requests_verify_bundle()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/rich-content-cli",
+        "X-Title": "Rich Content Python",
+    }
+
+    if prompt_text is None:
+        prompt_text = load_prompt()
+
+    content: list[dict] = [{"type": "text", "text": prompt_text}]
+    for buf in final_buffers:
+        b64 = base64.b64encode(buf).decode("ascii")
+        content.append(
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+        )
+
+    print("\nЗапрос к OpenRouter…", file=sys.stderr)
+    data = call_api(content, headers, verify, "Генерация")
+    out_bytes, out_mime = extract_image_from_response(data)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ext = "png" if "png" in out_mime.lower() else "jpg"
+    out_path = OUTPUT_DIR / f"rich-{int(time.time() * 1000)}.{ext}"
+    out_path.write_bytes(out_bytes)
+
+    try:
+        with Image.open(out_path) as im:
+            w, h = im.size
+        print(f"Размер результата: {w}×{h} px", file=sys.stderr)
+        if w % 800 != 0 or h % 500 != 0:
+            print(f"ВНИМАНИЕ: размер {w}×{h} не кратен 800×500 px.", file=sys.stderr)
+    except Exception as e:
+        print(f"Не удалось проверить размер результата: {e}", file=sys.stderr)
+
+    return out_path
+
+
+# ─────────────────────────────────────────────────────────────
+# CLI-обёртка
 # ─────────────────────────────────────────────────────────────
 
 def main() -> int:
     load_dotenv(ROOT / ".env")
 
-    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not api_key:
+    if not os.environ.get("OPENROUTER_API_KEY", "").strip():
         print("Задайте OPENROUTER_API_KEY в файле .env или переменной окружения.", file=sys.stderr)
         return 1
 
@@ -335,8 +396,6 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     names = sorted(
         [p.name for p in INPUT_DIR.iterdir() if p.is_file() and mime_from_name(p.name)],
@@ -350,78 +409,11 @@ def main() -> int:
         )
         return 1
 
-    buffers_meta: list[dict] = []
-    for name in names:
-        fp = INPUT_DIR / name
-        buf = fp.read_bytes()
-        if len(buf) > MAX_BYTES_FILE:
-            print(f"Файл слишком большой (>5 МБ): {name}", file=sys.stderr)
-            return 1
-        mime = mime_from_name(name)
-        if not mime:
-            print(f"Неподдерживаемый формат: {name}", file=sys.stderr)
-            return 1
-        buffers_meta.append({"buffer": buf, "mime": mime, "name": name})
-
-    print("Сжатие изображений под лимит API…", file=sys.stderr)
     try:
-        final_buffers = shrink_buffers(buffers_meta)
+        out_path = run_pipeline([INPUT_DIR / n for n in names])
     except Exception as e:
         print(str(e), file=sys.stderr)
         return 1
-
-    verify = requests_verify_bundle()
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/rich-content-cli",
-        "X-Title": "Rich Content Python",
-    }
-
-    # ── Единый запрос: анализ цвета + OCR + компоновка ──────────────────────
-    print("\nЗапрос к OpenRouter…", file=sys.stderr)
-
-    try:
-        prompt_text = load_prompt()
-    except FileNotFoundError as e:
-        print(str(e), file=sys.stderr)
-        return 1
-
-    content: list[dict] = [{"type": "text", "text": prompt_text}]
-    for buf in final_buffers:
-        b64 = base64.b64encode(buf).decode("ascii")
-        content.append(
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
-        )
-
-    try:
-        data = call_api(content, headers, verify, "Генерация")
-    except Exception as e:
-        print(str(e), file=sys.stderr)
-        return 1
-
-    try:
-        out_bytes, out_mime = extract_image_from_response(data)
-    except ValueError as e:
-        print(str(e), file=sys.stderr)
-        return 1
-
-    ext = "png" if "png" in out_mime.lower() else "jpg"
-    out_path = OUTPUT_DIR / f"rich-{int(time.time() * 1000)}.{ext}"
-    out_path.write_bytes(out_bytes)
-
-    try:
-        with Image.open(out_path) as im:
-            w, h = im.size
-        print(f"Размер результата: {w}×{h} px", file=sys.stderr)
-        if w % 800 != 0 or h % 500 != 0:
-            print(
-                f"ВНИМАНИЕ: размер {w}×{h} не кратен 800×500 px.",
-                file=sys.stderr,
-            )
-    except Exception as e:
-        print(f"Не удалось проверить размер результата: {e}", file=sys.stderr)
 
     print(out_path.resolve())
     return 0
