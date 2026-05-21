@@ -9,6 +9,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 from flask import Flask, render_template, request, redirect, url_for, send_file
 
 from generate_rich import run_pipeline, mime_from_name, OUTPUT_DIR
+from refine_pipeline import refine_banner
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 ГБ — размер файлов не ограничен, сжатие перед API
@@ -65,16 +66,8 @@ def refine(filename):
         return render_template("result.html", filename=filename,
                                error="Введите текст правки.")
 
-    refine_prompt = (
-        "Это уже готовый вертикальный РИЧ-баннер для маркетплейса.\n"
-        "Сохрани общий стиль, цветовую схему и структуру баннера.\n"
-        "Внеси следующие правки:\n\n"
-        f"{correction}\n\n"
-        "Верни обновлённый баннер того же формата и размера (800×2500 px)."
-    )
-
     try:
-        out_path = run_pipeline([file_path], prompt_text=refine_prompt)
+        out_path = refine_banner(file_path, correction)
     except Exception as e:
         return render_template("result.html", filename=filename, error=str(e))
 

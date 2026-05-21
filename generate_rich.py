@@ -8,7 +8,7 @@
     py -3 generate_rich.py
 
 Ключ API: переменная окружения OPENROUTER_API_KEY или файл .env рядом со скриптом.
-Промпт: файл prompt.txt рядом со скриптом.
+Промпт: файл prompts/prompt.txt.
 
 При ошибке SSL (корпоративная сеть): задайте SSL_CERT_FILE=путь\\к\\корневому.pem
 или временно OPENROUTER_INSECURE_SSL=1 (только для отладки).
@@ -151,7 +151,7 @@ def shrink_buffers(buffers_meta: list[dict]) -> list[bytes]:
 # Промпт (загружается из файла prompt.txt)
 # ─────────────────────────────────────────────────────────────
 
-PROMPT_FILE = ROOT / "prompt.txt"
+PROMPT_FILE = ROOT / "prompts" / "prompt.txt"
 
 
 def load_prompt() -> str:
