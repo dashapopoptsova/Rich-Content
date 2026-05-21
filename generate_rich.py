@@ -37,7 +37,6 @@ OUTPUT_DIR = ROOT / "выходные"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-3.1-flash-image-preview")
 
-MAX_BYTES_FILE = 5 * 1024 * 1024
 MAX_TOTAL_DECODED = 4 * 1024 * 1024
 
 
@@ -329,8 +328,6 @@ def run_pipeline(input_paths: list[Path], prompt_text: str | None = None) -> Pat
     buffers_meta: list[dict] = []
     for fp in input_paths:
         buf = fp.read_bytes()
-        if len(buf) > MAX_BYTES_FILE:
-            raise RuntimeError(f"Файл слишком большой (>5 МБ): {fp.name}")
         mime = mime_from_name(fp.name)
         if not mime:
             raise RuntimeError(f"Неподдерживаемый формат: {fp.name}")
