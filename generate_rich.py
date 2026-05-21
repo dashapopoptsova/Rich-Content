@@ -220,7 +220,7 @@ def call_api(
         "model": MODEL,
         "messages": [{"role": "user", "content": content}],
         "modalities": ["image", "text"],
-        #"image_config": {"aspect_ratio": "1:4"},   # вертикальный баннер
+        "image_config": {"aspect_ratio": "1:4"},
     }
 
     payload_bytes = len(json.dumps(payload).encode("utf-8"))
