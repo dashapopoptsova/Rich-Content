@@ -410,6 +410,19 @@ def main() -> int:
     ext = "png" if "png" in out_mime.lower() else "jpg"
     out_path = OUTPUT_DIR / f"rich-{int(time.time() * 1000)}.{ext}"
     out_path.write_bytes(out_bytes)
+
+    try:
+        with Image.open(out_path) as im:
+            w, h = im.size
+        print(f"Размер результата: {w}×{h} px", file=sys.stderr)
+        if w % 800 != 0 or h % 500 != 0:
+            print(
+                f"ВНИМАНИЕ: размер {w}×{h} не кратен 800×500 px.",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        print(f"Не удалось проверить размер результата: {e}", file=sys.stderr)
+
     print(out_path.resolve())
     return 0
 
