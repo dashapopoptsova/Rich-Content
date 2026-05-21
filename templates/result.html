@@ -20,93 +20,181 @@
       --text-muted:   #64748b;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 56px 20px 80px;
+      min-height: 100vh;
     }
 
-    header {
-      text-align: center;
-      margin-bottom: 40px;
+    /* ── Шапка ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
     }
 
     .logo-mark {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 56px; height: 56px;
+      width: 36px; height: 36px;
       background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      border-radius: 16px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 32px var(--accent-glow);
+      border-radius: 10px;
+      flex-shrink: 0;
     }
 
-    .logo-mark svg { width: 28px; height: 28px; color: #fff; }
+    .logo-mark svg { width: 18px; height: 18px; color: #fff; }
 
-    header h1 {
-      font-size: 1.6rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
+    .topbar-title {
+      font-size: 1rem;
+      font-weight: 700;
       background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
 
-    header p {
+    .topbar-sub {
+      font-size: .78rem;
       color: var(--text-muted);
-      margin-top: 6px;
-      font-size: .9rem;
+      margin-left: auto;
     }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 32px;
-      width: 100%;
-      max-width: 480px;
+    /* ── Основной двухколоночный макет ── */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 69px);
+    }
+
+    /* ── Левая колонка: баннер ── */
+    .pane-banner {
+      flex: 1 1 50%;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 24px;
+      border-right: 1px solid var(--border);
+      background: var(--surface2);
+      min-width: 0;
     }
 
-    /* ── Превью баннера ── */
-    .banner-wrap {
-      width: 100%;
-      height: 65vh;
-      min-height: 320px;
-      max-height: 700px;
-      overflow-y: auto;
-      border-radius: 14px;
-      border: 1px solid var(--border);
+    .pane-banner-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .pane-label {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-right: auto;
+    }
+
+    .zoom-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
       background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .zoom-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+    .zoom-level {
+      font-size: .75rem;
+      color: var(--text-muted);
+      min-width: 38px;
+      text-align: center;
+    }
+
+    .zoom-reset {
+      font-size: .7rem;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+
+    .zoom-reset:hover { border-color: var(--accent); color: var(--text); }
+
+    .banner-viewport {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px;
       scrollbar-width: thin;
       scrollbar-color: var(--accent) var(--surface2);
     }
 
-    .banner-wrap::-webkit-scrollbar       { width: 6px; }
-    .banner-wrap::-webkit-scrollbar-track { background: var(--surface2); border-radius: 99px; }
-    .banner-wrap::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 99px; }
+    .banner-viewport::-webkit-scrollbar       { width: 6px; height: 6px; }
+    .banner-viewport::-webkit-scrollbar-track { background: var(--surface2); }
+    .banner-viewport::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 99px; }
 
-    .banner-wrap img {
-      width: 100%;
+    .banner-img {
       display: block;
+      transform-origin: top center;
+      transition: transform .15s ease;
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
     }
 
-    /* ── Кнопки ── */
+    /* ── Правая колонка: панель диалога ── */
+    .pane-dialog {
+      flex: 0 0 380px;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      min-width: 0;
+    }
+
+    .pane-dialog-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Кнопки действий ── */
     .actions {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      width: 100%;
+      gap: 8px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .btn {
@@ -115,12 +203,12 @@
       justify-content: center;
       gap: 8px;
       width: 100%;
-      padding: 14px;
+      padding: 13px;
       background: linear-gradient(135deg, #7c3aed, #4f46e5);
       color: #fff;
       border: none;
-      border-radius: 14px;
-      font-size: .95rem;
+      border-radius: 12px;
+      font-size: .9rem;
       font-weight: 700;
       cursor: pointer;
       text-decoration: none;
@@ -128,7 +216,7 @@
       transition: box-shadow .2s, transform .1s;
     }
 
-    .btn:hover { box-shadow: 0 0 28px var(--accent-glow); }
+    .btn:hover { box-shadow: 0 0 24px var(--accent-glow); }
     .btn:active { transform: scale(.98); }
 
     .btn-secondary {
@@ -136,61 +224,41 @@
       align-items: center;
       justify-content: center;
       width: 100%;
-      padding: 13px;
+      padding: 12px;
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      font-size: .9rem;
+      border-radius: 12px;
+      font-size: .85rem;
       font-weight: 500;
       cursor: pointer;
       text-decoration: none;
       transition: border-color .2s, color .2s;
     }
 
-    .btn-secondary:hover {
-      border-color: var(--accent);
-      color: var(--text);
-    }
-
-    .hint {
-      color: var(--text-muted);
-      font-size: .75rem;
-      text-align: center;
-    }
-
-    /* ── Разделитель ── */
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      color: var(--text-muted);
-      font-size: .75rem;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
 
     /* ── Панель правок ── */
-    .refine-panel {
-      width: 100%;
+    .refine-area {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      padding: 16px 20px;
+      gap: 12px;
+      overflow-y: auto;
     }
 
-    .refine-label {
-      font-size: .82rem;
+    .refine-title {
+      font-size: .8rem;
+      font-weight: 600;
       color: var(--text-muted);
-      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .06em;
     }
 
     .refine-textarea {
-      width: 100%;
+      flex: 1;
+      min-height: 120px;
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -198,11 +266,12 @@
       color: var(--text);
       font-size: .88rem;
       font-family: inherit;
-      resize: vertical;
-      min-height: 84px;
+      resize: none;
       outline: none;
       transition: border-color .2s;
+      line-height: 1.55;
     }
+
     .refine-textarea::placeholder { color: var(--text-muted); }
     .refine-textarea:focus { border-color: var(--accent); }
 
@@ -216,12 +285,14 @@
       background: transparent;
       color: var(--text);
       border: 1px solid var(--accent);
-      border-radius: 14px;
+      border-radius: 12px;
       font-size: .9rem;
       font-weight: 600;
       cursor: pointer;
       transition: background .2s, box-shadow .2s;
+      flex-shrink: 0;
     }
+
     .btn-refine:hover { background: var(--accent-soft); box-shadow: 0 0 20px var(--accent-glow); }
     .btn-refine:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -229,11 +300,19 @@
     .error {
       background: rgba(248,113,113,.1);
       border: 1px solid rgba(248,113,113,.35);
-      border-radius: 12px;
-      padding: 12px 16px;
+      border-radius: 10px;
+      padding: 10px 14px;
       color: #fca5a5;
-      font-size: .88rem;
-      width: 100%;
+      font-size: .84rem;
+      flex-shrink: 0;
+    }
+
+    .filename-hint {
+      font-size: .7rem;
+      color: var(--text-muted);
+      word-break: break-all;
+      padding: 0 20px 14px;
+      flex-shrink: 0;
     }
 
     .spinner {
@@ -244,60 +323,119 @@
       border-radius: 50%;
       animation: spin .7s linear infinite;
     }
+
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Адаптив ── */
+    @media (max-width: 700px) {
+      .workspace { flex-direction: column; height: auto; overflow: visible; }
+      .pane-banner { flex: none; height: 60vw; min-height: 260px; border-right: none; border-bottom: 1px solid var(--border); }
+      .pane-dialog { flex: none; }
+    }
   </style>
 </head>
 <body>
 
-<header>
+<div class="topbar">
   <div class="logo-mark">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="3"/>
       <path d="M3 9h18M9 21V9"/>
     </svg>
   </div>
-  <h1>Баннер готов</h1>
-  <p>Прокрутите для просмотра, затем скачайте</p>
-</header>
+  <span class="topbar-title">РИЧ-контент</span>
+  <span class="topbar-sub">Баннер готов — прокрутите для просмотра</span>
+</div>
 
-<div class="card">
-  {% if error %}
-  <div class="error">{{ error }}</div>
-  {% endif %}
+<div class="workspace">
 
-  <div class="banner-wrap">
-    <img src="/preview/{{ filename }}" alt="Готовый РИЧ-баннер">
+  <!-- Левая колонка: баннер -->
+  <div class="pane-banner">
+    <div class="pane-banner-toolbar">
+      <span class="pane-label">Предпросмотр</span>
+      <button class="zoom-btn" id="zoomOut" title="Уменьшить">−</button>
+      <span class="zoom-level" id="zoomLabel">100%</span>
+      <button class="zoom-btn" id="zoomIn" title="Увеличить">+</button>
+      <button class="zoom-reset" id="zoomReset">сброс</button>
+    </div>
+    <div class="banner-viewport" id="viewport">
+      <img class="banner-img" id="bannerImg" src="/preview/{{ filename }}" alt="Готовый РИЧ-баннер">
+    </div>
   </div>
 
-  <div class="actions">
-    <a href="/download/{{ filename }}" class="btn" download>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-      </svg>
-      Скачать
-    </a>
-    <a href="/" class="btn-secondary">← Сгенерировать ещё</a>
+  <!-- Правая колонка: диалог -->
+  <div class="pane-dialog">
+    <div class="pane-dialog-toolbar">
+      <span class="pane-label">Управление</span>
+    </div>
+
+    <div class="actions">
+      <a href="/download/{{ filename }}" class="btn" download>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Скачать
+      </a>
+      <a href="/" class="btn-secondary">← Сгенерировать ещё</a>
+    </div>
+
+    <form class="refine-area" method="POST" action="/refine/{{ filename }}" id="refineForm">
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <p class="refine-title">Правки</p>
+
+      <textarea
+        class="refine-textarea"
+        name="correction"
+        id="correction"
+        placeholder="Опишите, что изменить&#10;&#10;Например:&#10;• Сделай заголовок крупнее&#10;• Убери таблицу размеров&#10;• Измени фон на тёмно-синий"></textarea>
+
+      <button type="submit" class="btn-refine" id="refineBtn">
+        <span id="refineText">Применить правки</span>
+        <div class="spinner" id="refineSpinner"></div>
+      </button>
+    </form>
+
+    <p class="filename-hint">{{ filename }}</p>
   </div>
 
-  <div class="divider">правки</div>
-
-  <form class="refine-panel" method="POST" action="/refine/{{ filename }}" id="refineForm">
-    <p class="refine-label">Опишите, что изменить в баннере:</p>
-    <textarea
-      class="refine-textarea"
-      name="correction"
-      id="correction"
-      placeholder="Например: сделай заголовок крупнее, убери таблицу размеров, измени фон на тёмно-синий..."></textarea>
-    <button type="submit" class="btn-refine" id="refineBtn">
-      <span id="refineText">Применить правки</span>
-      <div class="spinner" id="refineSpinner"></div>
-    </button>
-  </form>
-
-  <p class="hint">{{ filename }}</p>
 </div>
 
 <script>
+  /* Зум */
+  const img       = document.getElementById('bannerImg');
+  const label     = document.getElementById('zoomLabel');
+  const viewport  = document.getElementById('viewport');
+  const STEPS     = [25, 33, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300];
+  let stepIdx     = 6; // 100%
+
+  function applyZoom() {
+    const z = STEPS[stepIdx] / 100;
+    img.style.transform = `scale(${z})`;
+    img.style.transformOrigin = 'top center';
+    img.style.width = '100%';
+    label.textContent = STEPS[stepIdx] + '%';
+    // Подстраиваем минимальную высоту враппера чтобы скролл работал
+    img.style.marginBottom = z > 1 ? (img.naturalHeight * z - img.naturalHeight) + 'px' : '0';
+  }
+
+  document.getElementById('zoomIn').addEventListener('click', () => {
+    if (stepIdx < STEPS.length - 1) { stepIdx++; applyZoom(); }
+  });
+
+  document.getElementById('zoomOut').addEventListener('click', () => {
+    if (stepIdx > 0) { stepIdx--; applyZoom(); }
+  });
+
+  document.getElementById('zoomReset').addEventListener('click', () => {
+    stepIdx = 6; applyZoom();
+  });
+
+  applyZoom();
+
+  /* Правки */
   const refineForm    = document.getElementById('refineForm');
   const refineBtn     = document.getElementById('refineBtn');
   const refineText    = document.getElementById('refineText');
