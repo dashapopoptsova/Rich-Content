@@ -11,7 +11,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_file
 from generate_rich import run_pipeline, mime_from_name, OUTPUT_DIR
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 60 * 1024 * 1024  # 60 МБ — до 10 файлов по 5 МБ + запас
+app.config["MAX_CONTENT_LENGTH"] = 120 * 1024 * 1024  # 120 МБ — до 20 файлов по 5 МБ + запас
 
 
 @app.route("/")

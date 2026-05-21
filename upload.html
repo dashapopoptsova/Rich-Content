@@ -18,7 +18,7 @@
 </head>
 <body>
   <h1>Минимальная загрузка для n8n</h1>
-  <p>Откройте эту страницу в браузере, выберите <strong>от 3 до 10</strong> изображений (JPG/PNG, до 5 МБ) и нажмите «Отправить».</p>
+  <p>Откройте эту страницу в браузере, выберите <strong>от 3 до 20</strong> изображений (JPG/PNG, до 5 МБ) и нажмите «Отправить».</p>
 
   <div class="box">
     <form
@@ -76,9 +76,9 @@
         localStorage.setItem('rich_webhook_url', url);
 
         var n = filesInput.files.length;
-        if (n < 3 || n > 10) {
+        if (n < 3 || n > 20) {
           e.preventDefault();
-          errEl.textContent = 'Нужно от 3 до 10 изображений. Сейчас: ' + n + '.';
+          errEl.textContent = 'Нужно от 3 до 20 изображений. Сейчас: ' + n + '.';
           errEl.hidden = false;
           return;
         }

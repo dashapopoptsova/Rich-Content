@@ -2,7 +2,7 @@
 Генерация вертикального РИЧ-баннера через OpenRouter (Gemini Image).
 Один вызов API: анализ цвета + OCR + компоновка за один запрос.
 
-Кладите 3–10 изображений (jpg/png/jfif) в папку «входные», затем:
+Кладите 3–20 изображений (jpg/png/jfif) в папку «входные», затем:
     python generate_rich.py
 или:
     py -3 generate_rich.py
@@ -392,7 +392,7 @@ def main() -> int:
     if not INPUT_DIR.is_dir():
         INPUT_DIR.mkdir(parents=True, exist_ok=True)
         print(
-            "Создана папка «входные». Положите туда 3–10 изображений и запустите снова.",
+            "Создана папка «входные». Положите туда 3–20 изображений и запустите снова.",
             file=sys.stderr,
         )
         return 1
@@ -402,9 +402,9 @@ def main() -> int:
         key=lambda x: x.lower(),
     )
 
-    if not (3 <= len(names) <= 10):
+    if not (3 <= len(names) <= 20):
         print(
-            f"Нужно от 3 до 10 изображений в «входные». Подходящих файлов: {len(names)}.",
+            f"Нужно от 3 до 20 изображений в «входные». Подходящих файлов: {len(names)}.",
             file=sys.stderr,
         )
         return 1

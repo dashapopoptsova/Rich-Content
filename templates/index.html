@@ -251,7 +251,7 @@
     </div>
 
     <div class="file-counter" id="counter">
-      Выбрано: <b id="countNum">0</b>&nbsp;/ 10
+      Выбрано: <b id="countNum">0</b>&nbsp;/ 20
     </div>
 
     <div class="previews" id="previews"></div>
@@ -263,7 +263,7 @@
   </form>
 
   <p class="hint">
-    От 3 до 10 изображений · JPG, PNG · до 5 МБ каждый<br>
+    От 3 до 20 изображений · JPG, PNG · до 5 МБ каждый<br>
     Среднее время генерации — 30–60 секунд
   </p>
 </div>
@@ -284,7 +284,7 @@
     previews.innerHTML = '';
     counter.style.display = n ? 'block' : 'none';
     countNum.textContent = n;
-    submitBtn.disabled = n < 3 || n > 10;
+    submitBtn.disabled = n < 3 || n > 20;
 
     Array.from(files).forEach(file => {
       const div = document.createElement('div');
