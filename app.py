@@ -52,6 +52,35 @@ def generate():
     return redirect(url_for("result", filename=out_path.name))
 
 
+@app.route("/refine/<filename>", methods=["POST"])
+def refine(filename):
+    file_path = (OUTPUT_DIR / filename).resolve()
+    if not str(file_path).startswith(str(OUTPUT_DIR.resolve())):
+        return "Недопустимый путь", 400
+    if not file_path.is_file():
+        return "Файл не найден", 404
+
+    correction = request.form.get("correction", "").strip()
+    if not correction:
+        return render_template("result.html", filename=filename,
+                               error="Введите текст правки.")
+
+    refine_prompt = (
+        "Это уже готовый вертикальный РИЧ-баннер для маркетплейса.\n"
+        "Сохрани общий стиль, цветовую схему и структуру баннера.\n"
+        "Внеси следующие правки:\n\n"
+        f"{correction}\n\n"
+        "Верни обновлённый баннер того же формата и размера (800×2500 px)."
+    )
+
+    try:
+        out_path = run_pipeline([file_path], prompt_text=refine_prompt)
+    except Exception as e:
+        return render_template("result.html", filename=filename, error=str(e))
+
+    return redirect(url_for("result", filename=out_path.name))
+
+
 @app.route("/result/<filename>")
 def result(filename):
     file_path = (OUTPUT_DIR / filename).resolve()

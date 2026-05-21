@@ -158,6 +158,93 @@
       font-size: .75rem;
       text-align: center;
     }
+
+    /* ── Разделитель ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      color: var(--text-muted);
+      font-size: .75rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Панель правок ── */
+    .refine-panel {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .refine-label {
+      font-size: .82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .refine-textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: .88rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 84px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .refine-textarea::placeholder { color: var(--text-muted); }
+    .refine-textarea:focus { border-color: var(--accent); }
+
+    .btn-refine {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 14px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, box-shadow .2s;
+    }
+    .btn-refine:hover { background: var(--accent-soft); box-shadow: 0 0 20px var(--accent-glow); }
+    .btn-refine:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Ошибка ── */
+    .error {
+      background: rgba(248,113,113,.1);
+      border: 1px solid rgba(248,113,113,.35);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fca5a5;
+      font-size: .88rem;
+      width: 100%;
+    }
+
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -174,6 +261,10 @@
 </header>
 
 <div class="card">
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+
   <div class="banner-wrap">
     <img src="/preview/{{ filename }}" alt="Готовый РИЧ-баннер">
   </div>
@@ -188,8 +279,42 @@
     <a href="/" class="btn-secondary">← Сгенерировать ещё</a>
   </div>
 
+  <div class="divider">правки</div>
+
+  <form class="refine-panel" method="POST" action="/refine/{{ filename }}" id="refineForm">
+    <p class="refine-label">Опишите, что изменить в баннере:</p>
+    <textarea
+      class="refine-textarea"
+      name="correction"
+      id="correction"
+      placeholder="Например: сделай заголовок крупнее, убери таблицу размеров, измени фон на тёмно-синий..."></textarea>
+    <button type="submit" class="btn-refine" id="refineBtn">
+      <span id="refineText">Применить правки</span>
+      <div class="spinner" id="refineSpinner"></div>
+    </button>
+  </form>
+
   <p class="hint">{{ filename }}</p>
 </div>
+
+<script>
+  const refineForm    = document.getElementById('refineForm');
+  const refineBtn     = document.getElementById('refineBtn');
+  const refineText    = document.getElementById('refineText');
+  const refineSpinner = document.getElementById('refineSpinner');
+  const correction    = document.getElementById('correction');
+
+  refineForm.addEventListener('submit', e => {
+    if (!correction.value.trim()) {
+      e.preventDefault();
+      correction.focus();
+      return;
+    }
+    refineText.style.display = 'none';
+    refineSpinner.style.display = 'block';
+    refineBtn.disabled = true;
+  });
+</script>
 
 </body>
 </html>
